@@ -434,10 +434,7 @@ namespace CppAst
 
             if (element != null)
             {
-                bool isForwardDeclaration = (element is CppClass || element is CppEnum) && !cursor.IsDefinition;
-                if (!isForwardDeclaration) {
-                    AssignSourceSpan(cursor, element);
-                }
+                AssignSourceSpan(cursor, element);
             }
 
             if (element is ICppDeclaration cppDeclaration)
@@ -450,11 +447,6 @@ namespace CppAst
                 {
                     TryToParseAttributesFromComment(cppDeclaration.Comment, attrContainer);
                 }
-            }
-
-            if (element is ICppAttributeContainer container)
-            {
-                TryToConvertAttributesToMetaAttributes(container);
             }
 
             return CXChildVisitResult.CXChildVisit_Continue;
@@ -821,7 +813,7 @@ namespace CppAst
                 case CX_CXXAccessSpecifier.CX_CXXPublic:
                     return CppVisibility.Public;
                 default:
-                    return CppVisibility.Default;
+                    return CppVisibility.Public;
             }
         }
 
@@ -829,8 +821,7 @@ namespace CppAst
         {
             var start = cursor.Extent.Start;
             var end = cursor.Extent.End;
-            if (element.Span.Start.File is null)
-                element.Span = new CppSourceSpan(GetSourceLocation(start), GetSourceLocation(end));
+            element.Span = new CppSourceSpan(GetSourceLocation(start), GetSourceLocation(end));
         }
 
         public static CppSourceLocation GetSourceLocation(CXSourceLocation start)
@@ -1573,53 +1564,6 @@ namespace CppAst
                 }
             }
         }
-        
-        private void AppendToMetaAttributes(List<MetaAttribute> metaList, MetaAttribute metaAttr)
-        {
-            if (metaAttr is null)
-            {
-                return;
-            }
-            
-            foreach (MetaAttribute meta in metaList)
-            {
-                foreach (KeyValuePair<string, object> kvp in meta.ArgumentMap)
-                {
-                    if (metaAttr.ArgumentMap.ContainsKey(kvp.Key))
-                    {
-                        metaAttr.ArgumentMap.Remove(kvp.Key);
-                    }
-                }
-            }
-
-            if (metaAttr.ArgumentMap.Count > 0)
-            {
-                metaList.Add(metaAttr);
-            }
-        }
-        
-        private void TryToConvertAttributesToMetaAttributes(ICppAttributeContainer attrContainer)
-        {
-            foreach (var attr in attrContainer.Attributes)
-            {
-                //Now we only handle for annotate attribute here
-                if (attr.Kind == AttributeKind.AnnotateAttribute)
-                {
-                    MetaAttribute metaAttr = null;
-                    string errorMessage = null;
-                    
-                    metaAttr = CustomAttributeTool.ParseMetaStringFor(attr.Arguments, out errorMessage);
-                    
-                    if (!string.IsNullOrEmpty(errorMessage))
-                    {
-                        var element = (CppElement)attrContainer;
-                        throw new Exception($"handle meta not right, detail: `{errorMessage}, location: `{element.Span}`");
-                    }
-
-                    AppendToMetaAttributes(attrContainer.MetaAttributes.MetaList, metaAttr);
-                }
-            }
-        }
 
         private void ParseAttributes(CXCursor cursor, ICppAttributeContainer attrContainer, bool needOnlineSeek = false)
         {
@@ -1655,18 +1599,6 @@ namespace CppAst
             attrContainer.TokenAttributes.AddRange(tokenAttributes);
         }
 
-        private void ParseTypedefAttribute(CXCursor cursor, CppType type, CppType underlyingTypeDefType)
-        {
-            if (type is CppTypedef typedef)
-            {
-                ParseAttributes(cursor, typedef, true);
-                if (underlyingTypeDefType is CppClass targetClass)
-                {
-                    targetClass.Attributes.AddRange(typedef.Attributes);
-                    TryToConvertAttributesToMetaAttributes(targetClass);
-                }
-            }
-        }
 
         private CppType VisitTypeAliasDecl(CXCursor cursor, void* data)
         {
@@ -1701,8 +1633,6 @@ namespace CppAst
                 type = typedef;
             }
 
-            ParseTypedefAttribute(cursor, type, underlyingTypeDefType);
-            
             // The type could have been added separately as part of the GetCppType above
             if (_typedefs.TryGetValue(fulltypeDefName, out var cppPreviousCppType))
             {
@@ -1740,8 +1670,6 @@ namespace CppAst
                 type = typedef;
             }
 
-            ParseTypedefAttribute(cursor, type, underlyingTypeDefType);
-            
             // The type could have been added separately as part of the GetCppType above
             if (_typedefs.TryGetValue(fulltypeDefName, out var cppPreviousCppType))
             {
