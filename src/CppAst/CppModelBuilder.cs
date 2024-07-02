@@ -1355,6 +1355,8 @@ namespace CppAst
 
                         var parameter = new CppParameter(GetCppType(argCursor.Type.Declaration, argCursor.Type, argCursor, clientData), argName);
 
+						ParseAttributes(argCursor, parameter, true);
+                        
                         cppFunction.Parameters.Add(parameter);
 
                         // Visit default parameter value
