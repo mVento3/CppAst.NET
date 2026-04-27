@@ -57,6 +57,24 @@ namespace CppAst
         /// </summary>
         public string ObjCCategoryName { get; set; }
 
+        private static string TryCast(CppTemplateArgument ta)
+        {
+            if (ta.SourceParam is CppTemplateParameterNonType)
+            {
+                var tpnt = ta.SourceParam as CppTemplateParameterNonType;
+
+                // Cast to enum type
+                if (tpnt.NoneTemplateType is CppEnum)
+                {
+                    var @enum = tpnt.NoneTemplateType as CppEnum;
+
+                    return $"{@enum.FullName}({ta.ArgString})";
+                }
+            }
+
+            return ta.ArgString;
+        }
+
         public override string FullName
         {
             get
@@ -97,7 +115,7 @@ namespace CppAst
                         {
                             sb.Append(", ");
                         }
-                        sb.Append(ta.ArgString);
+                        sb.Append(TryCast(ta));
                     }
                     sb.Append('>');
                 }
