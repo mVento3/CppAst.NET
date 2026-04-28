@@ -2303,6 +2303,9 @@ namespace CppAst
                 case CXTypeKind.CXType_LValueReference:
                     return new CppReferenceType(GetCppType(type.PointeeType.Declaration, type.PointeeType, parent, data));
 
+                case CXTypeKind.CXType_RValueReference:
+                    return new CppRValueType(GetCppType(type.PointeeType.Declaration, type.PointeeType, parent, data));
+
                 case CXTypeKind.CXType_Record:
                     return VisitClassDecl(cursor, data);
 

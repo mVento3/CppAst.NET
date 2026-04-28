@@ -18,9 +18,13 @@ namespace CppAst
         /// </summary>
         Pointer,
         /// <summary>
-        /// A reference type (e.g `int&amp;`)
+        /// A reference type (e.g `int&`)
         /// </summary>
         Reference,
+        /// <summary>
+        /// A RValuue type (e.g `int&&`)
+        /// </summary>
+        RValue,
         /// <summary>
         /// An array type (e.g int[5])
         /// </summary>
