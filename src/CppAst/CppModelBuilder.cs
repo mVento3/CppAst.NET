@@ -2,6 +2,8 @@
 // Licensed under the BSD-Clause 2 license.
 // See license.txt file in the project root for full license information.
 
+using ClangSharp;
+using ClangSharp.Interop;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -10,8 +12,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
-using ClangSharp;
-using ClangSharp.Interop;
+using System.Xml.Linq;
 
 namespace CppAst
 {
@@ -2465,14 +2466,23 @@ namespace CppAst
                 : new CppFunctionType(returnType);
             cppFunction.CallingConvention = GetCallingConvention(type);
 
-            // We don't use this but use the visitor children to try to recover the parameter names
+            CXType canonPointeeType = type.CanonicalType;
 
-            //            for (uint i = 0; i < type.NumArgTypes; i++)
-            //            {
-            //                var argType = type.GetArgType(i);
-            //                var cppType = GetCppType(argType.Declaration, argType, type.Declaration, data);
-            //                cppFunction.ParameterTypes.Add(cppType);
-            //            }
+            // In case of parsing callbacks there are problems to get the parameters from the cursor,
+            // so we need to get them from the type directly, callbacks often don't have arg names anyway.
+            if (canonPointeeType.kind == CXTypeKind.CXType_FunctionProto ||
+                canonPointeeType.kind == CXTypeKind.CXType_FunctionNoProto)
+            {
+                for (uint i = 0; i < type.NumArgTypes; i++)
+                {
+                    var argType = type.GetArgType(i);
+                    var cppType = GetCppType(argType.Declaration, argType, type.Declaration, data);
+
+                    cppFunction.Parameters.Add(new CppParameter(cppType));
+                }
+
+                return cppFunction;
+            }
 
             bool isParsingParameter = false;
             parent.VisitChildren((argCursor, functionCursor, clientData) =>

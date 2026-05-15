@@ -17,10 +17,10 @@ namespace CppAst
         /// </summary>
         /// <param name="type">Type of the parameter.</param>
         /// <param name="name">Name of the parameter</param>
-        public CppParameter(CppType type, string name)
+        public CppParameter(CppType type, string? name = null)
         {
             Type = type ?? throw new ArgumentNullException(nameof(type));
-            Name = name ?? throw new ArgumentNullException(nameof(name));
+            Name = name;
             Attributes = new List<CppAttribute>();
             TokenAttributes = new List<CppAttribute>();
             MetaAttributes = new MetaAttributeMap();
@@ -34,7 +34,7 @@ namespace CppAst
         /// <summary>
         /// Gets the name of this parameter.
         /// </summary>
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// Gets or sets the default value.
