@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Text;
 using System.Threading;
 using Irony.Parsing;
+using System.Linq;
 
 namespace CppAst
 {
@@ -34,7 +35,8 @@ namespace CppAst
             Template = "template",
             TemplateElem = "template_elem",
             LeftBracket = "left_bracket",
-            RightBracket = "right_bracket";
+            RightBracket = "right_bracket",
+            Tuple = "tuple";
         }
 
         [Language("NamedParameter.CppAst", "0.1", "Grammer for named parameter")]
@@ -89,6 +91,7 @@ namespace CppAst
                 NonTerminal TEMPLATE = new NonTerminal(TerminalNames.Template);
                 NonTerminal TEMPLATE_ELEM = new NonTerminal(TerminalNames.TemplateElem);
                 NonTerminal CLASS = new NonTerminal(TerminalNames.Class);
+                NonTerminal TUPLE = new NonTerminal(TerminalNames.Tuple);
                 NonTerminal LEFT_BRACKET = new NonTerminal(TerminalNames.LeftBracket);
                 NonTerminal RIGHT_BRACKET = new NonTerminal(TerminalNames.RightBracket);
                 #endregion
@@ -105,10 +108,11 @@ namespace CppAst
                 TEMPLATE.Rule = ToTerm("<") + TEMPLATE_ELEM + ToTerm(">");
                 CLASS_NAME.Rule = NAMESPACE + TEMPLATE | Name + TEMPLATE | NAMESPACE | Name;
                 ARGS.Rule = MakeStarRule(ARGS, ToTerm(","), EXPRESSION | Empty);
-                CLASS.Rule = CLASS_KEYWORD + LEFT_BRACKET + CLASS_NAME + LEFT_BRACKET + ARGS + RIGHT_BRACKET + RIGHT_BRACKET;
-                
-                EXPRESSION.Rule = BOOLEAN | NUMBER | CLASS | STRING_LITERAL;
-                ASSIGNMENT.Rule = Name | Name + EQUAL + EXPRESSION;
+                CLASS.Rule = CLASS_NAME + LEFT_BRACKET + ARGS + RIGHT_BRACKET;
+                TUPLE.Rule = LEFT_BRACKET + ARGS + RIGHT_BRACKET;
+
+                EXPRESSION.Rule = BOOLEAN | NUMBER | CLASS | TUPLE | STRING_LITERAL;
+                ASSIGNMENT.Rule = Name | NAMESPACE | NAMESPACE + EQUAL + EXPRESSION | Name + EQUAL + EXPRESSION;
                 LOOP_PAIR.Rule = MakeStarRule(COMMA + ASSIGNMENT);
                 NAMED_ARGUMENTS.Rule = ASSIGNMENT + LOOP_PAIR;
 
@@ -120,6 +124,8 @@ namespace CppAst
 
                 ////this.MarkPunctuation(",", ";");
                 #endregion
+
+                MarkPunctuation(",");
             }
 
             //Must create new overrides here in order to support the "Operator" token color
@@ -208,7 +214,7 @@ namespace CppAst
             }
             else
             {
-                errorMessage = ast.ParserMessages.ToString();
+                errorMessage = string.Join(Environment.NewLine, ast.ParserMessages.Select(m => m.Message));
             }
 
             return false;
@@ -243,6 +249,8 @@ namespace CppAst
                 case TerminalNames.LeftBracket:
                 case TerminalNames.RightBracket:
                     return node.ChildNodes[0].Token.Value;
+                case TerminalNames.Tuple:
+                    return ParseTupleToken(node.ChildNodes);
                 default:
                     if (node.ChildNodes.Count == 0 && node.Token != null)
                     {
@@ -259,7 +267,8 @@ namespace CppAst
 
         private static void ParseAssignment(ParseTreeNode node, Dictionary<string, object> outNamedParameterDic)
         {
-            string varName = node.ChildNodes[0].Token.ValueString;
+            var parsedExpr = ParseExpressionValue(node.ChildNodes[0]);
+            string varName = parsedExpr.ToString();
             if(!outNamedParameterDic.ContainsKey(varName))
             {
                 if (node.ChildNodes.Count == 1)
@@ -275,9 +284,7 @@ namespace CppAst
 
         private static void ParseLoopItem(Irony.Parsing.ParseTreeNode loopNode, Dictionary<string, object> outNamedParameterDic)
         {
-            ParseAssignment(loopNode.ChildNodes[1], outNamedParameterDic);
-
-            for (int i = 2; i < loopNode.ChildNodes.Count; i++)
+            for (int i = 0; i < loopNode.ChildNodes.Count; i++)
             {
                 ParseAssignment(loopNode.ChildNodes[i], outNamedParameterDic);
             }
@@ -346,7 +353,7 @@ namespace CppAst
             return builder.ToString();
         }
         
-        private static StringBuilder ParseClassToken(ParseTreeNodeList nodeList)
+        private static string ParseClassToken(ParseTreeNodeList nodeList)
         {
             if (nodeList.Count == 0)
             {
@@ -354,12 +361,39 @@ namespace CppAst
             }
             
             StringBuilder builder = new StringBuilder();
+
+            builder.Append(ParseExpressionValue(nodeList[0]));
+            builder.Append('{');
+
             for (int i = 2; i < nodeList.Count-1; i++)
             {
                 builder.Append(ParseExpressionValue(nodeList[i]));
             }
 
-            return builder;
+            builder.Append('}');
+
+            return builder.ToString();
+        }
+
+        private static string ParseTupleToken(ParseTreeNodeList nodeList)
+        {
+            if (nodeList.Count == 0)
+            {
+                return null;
+            }
+
+            StringBuilder builder = new StringBuilder();
+
+            builder.Append("std::make_tuple(");
+
+            for (int i = 1; i < nodeList.Count - 1; i++)
+            {
+                builder.Append(ParseExpressionValue(nodeList[i]));
+            }
+
+            builder.Append(')');
+
+            return builder.ToString();
         }
     }
 }

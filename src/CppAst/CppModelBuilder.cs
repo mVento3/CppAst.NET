@@ -1746,7 +1746,12 @@ namespace CppAst
                         var parameter = new CppParameter(GetCppType(argCursor.Type.Declaration, argCursor.Type, argCursor, clientData), argName);
 
                         ParseAttributes(argCursor, parameter, true);
-                        
+
+                        if (parameter is ICppAttributeContainer container)
+                        {
+                            TryToConvertAttributesToMetaAttributes(container);
+                        }
+
                         cppFunction.Parameters.Add(parameter);
 
                         // Visit default parameter value
@@ -1996,7 +2001,7 @@ namespace CppAst
                     if (!string.IsNullOrEmpty(errorMessage))
                     {
                         var element = (CppElement)attrContainer;
-                        throw new Exception($"handle meta not right, detail: `{errorMessage}, location: `{element.Span}`");
+                        throw new Exception($"handle meta not right, detail: `{errorMessage}`, location: `{element.Span}`");
                     }
 
                     AppendToMetaAttributes(attrContainer.MetaAttributes.MetaList, metaAttr);
